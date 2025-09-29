@@ -43,8 +43,9 @@ public class VoskFlutterPlugin implements FlutterPlugin, MethodCallHandler {
 
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
-    try {
-      switch (call.method) {
+    synchronized (this) {
+      try {
+        switch (call.method) {
 
         case "model.create": {
           String modelPath = castMethodCallArgs(call, String.class);
@@ -241,18 +242,22 @@ public class VoskFlutterPlugin implements FlutterPlugin, MethodCallHandler {
           Integer recognizerId = getRequiredArgumentFromMap(argsMap, "recognizerId", Integer.class);
           Integer sampleRate = getRequiredArgumentFromMap(argsMap, "sampleRate", Integer.class);
 
-          if (speechService == null) {
+          // Dispose existing instance if any
+          if (speechService != null) {
             try {
-              speechService = new SpeechService(recognizersMap.get(recognizerId), sampleRate);
-            } catch (IOException e) {
-              result.error("INITIALIZE_FAIL", e.getMessage(), null);
-              break;
+              speechService.shutdown();
+            } catch (Exception e) {
+              // Log warning but continue
             }
-          } else {
-            result.error("INITIALIZE_FAIL", "SpeechService instance already exist.", null);
-            break;
+            speechService = null;
           }
-          result.success(null);
+
+          try {
+            speechService = new SpeechService(recognizersMap.get(recognizerId), sampleRate);
+            result.success(null);
+          } catch (IOException e) {
+            result.error("INITIALIZE_FAIL", e.getMessage(), null);
+          }
         }
         break;
 
@@ -311,6 +316,19 @@ public class VoskFlutterPlugin implements FlutterPlugin, MethodCallHandler {
         }
         break;
 
+        case "speechService.dispose": {
+          if (speechService != null) {
+            try {
+              speechService.shutdown();
+            } catch (Exception e) {
+              // Log warning but continue
+            }
+            speechService = null;
+          }
+          result.success(null);
+        }
+        break;
+
         default:
           result.notImplemented();
           break;
@@ -323,6 +341,7 @@ public class VoskFlutterPlugin implements FlutterPlugin, MethodCallHandler {
       result.error("NO_RECOGNIZER", "There is no recognizer with this id.", e);
     } catch (SpeechServiceNotFound e) {
       result.error("NO_SPEECH_SERVICE", "Speech service not created.", e);
+    }
     }
   }
 

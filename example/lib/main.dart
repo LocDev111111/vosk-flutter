@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:vosk_flutter/vosk_flutter.dart';
 
@@ -33,7 +34,7 @@ class _VoskFlutterDemoState extends State<VoskFlutterDemo> {
 
   final _vosk = VoskFlutterPlugin.instance();
   final _modelLoader = ModelLoader();
-  final _recorder = Record();
+  final _recorder = AudioRecorder();
 
   String? _fileRecognitionResult;
   String? _error;
@@ -153,8 +154,10 @@ class _VoskFlutterDemoState extends State<VoskFlutterDemo> {
 
   Future<void> _recordAudio() async {
     try {
-      await _recorder.start(
-          samplingRate: 16000, encoder: AudioEncoder.wav, numChannels: 1);
+      final directory = await getApplicationDocumentsDirectory();
+      final fullPath =
+          '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.start(const RecordConfig(), path: fullPath);
     } catch (e) {
       _error = e.toString() +
           '\n\n Make sure fmedia(https://stsaz.github.io/fmedia/)'
